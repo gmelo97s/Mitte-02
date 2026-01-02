@@ -2,7 +2,7 @@ import { useState } from "react";
 import FullscreenImage from "@/components/FullscreenImage";
 import FormStep from "@/components/FormStep";
 import SummaryScreen from "@/components/SummaryScreen";
-import heroMitte from "@/assets/hero_mitte.jpg";
+import heroMitte from "@/assets/hero_mitte.png";
 import balcaoFrente from "@/assets/balcao_frente.jpg";
 import balcaoSofa from "@/assets/balcao_sofa.jpg";
 import mictoriosRosa from "@/assets/mictorios_rosa.jpg";
@@ -72,10 +72,8 @@ Em breve nossa equipe irá confirmar por aqui o seu agendamento.`;
     return <FullscreenImage src={heroMitte} alt="Mitte Birthday" overlay={false}>
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background/30" />
         <div className="relative z-10 flex flex-col items-center justify-end pb-20 min-h-screen">
-          <div className="animate-slide-up text-center">
-            
-            
-            <button onClick={() => setCurrentStep(0)} className="btn-neon animate-pulse-glow text-lg">
+          <div className="animate-slide-up text-center mb-32">
+            <button onClick={() => setCurrentStep(0)} className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-4 font-bold uppercase tracking-widest text-lg transition-all duration-300 shadow-lg shadow-primary/50">
               Agendar meu aniversário
             </button>
           </div>
@@ -113,7 +111,7 @@ Em breve nossa equipe irá confirmar por aqui o seu agendamento.`;
     question: "Gostaria de fazer alguma observação?",
     field: "observacoes" as keyof FormData,
     type: "textarea",
-    placeholder: "Decore específica, música especial, etc...",
+    placeholder: "Decoração específica, música especial, etc...",
     optional: true
   }, {
     question: "Qual o seu WhatsApp/Telefone?",
