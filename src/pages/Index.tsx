@@ -73,7 +73,7 @@ Em breve nossa equipe irá confirmar por aqui o seu agendamento.`;
         <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background/30" />
         <div className="relative z-10 flex flex-col items-center justify-end pb-20 min-h-screen">
           <div className="animate-slide-up text-center mb-32">
-            <button onClick={() => setCurrentStep(0)} className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-4 font-bold uppercase tracking-widest text-lg transition-all duration-300 shadow-lg shadow-primary/50">
+            <button onClick={() => setCurrentStep(0)} className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-4 font-bold uppercase tracking-widest transition-all duration-300 shadow-lg shadow-primary/50 text-xs text-justify">
               Agendar meu aniversário
             </button>
           </div>
