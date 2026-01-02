@@ -28,6 +28,12 @@ const SummaryScreen = ({
   const [editingField, setEditingField] = useState<keyof FormData | null>(null);
   const [editValue, setEditValue] = useState("");
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+    const [year, month, day] = dateString.split("-");
+    return `${day}/${month}/${year}`;
+  };
+
   const fields: { key: keyof FormData; label: string }[] = [
     { key: "nome", label: "Qual o seu nome?" },
     { key: "pessoas", label: "Quantas pessoas pretende convidar?" },
@@ -110,12 +116,12 @@ const SummaryScreen = ({
                       {label}
                     </p>
                     <p className="text-sm text-foreground">
-                      {formData[key] || "-"}
+                      {key === "data" ? formatDate(formData[key]) : (formData[key] || "-")}
                     </p>
                   </div>
                   <button
                     onClick={() => handleStartEdit(key)}
-                    className="px-2 py-1 text-xs font-bold uppercase text-primary opacity-0 transition-opacity group-hover:opacity-100"
+                    className="px-2 py-1 text-xs font-bold uppercase text-primary"
                   >
                     Editar
                   </button>
