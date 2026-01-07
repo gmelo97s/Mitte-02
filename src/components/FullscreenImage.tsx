@@ -9,7 +9,7 @@ interface FullscreenImageProps {
 
 const FullscreenImage = ({ src, alt, children, overlay = true }: FullscreenImageProps) => {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden">
+    <div className="relative min-h-screen w-full overflow-x-hidden">
       {/* Background Image with Zoom Animation */}
       <div className="absolute inset-0">
         <img

@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef, TouchEvent } from "react";
+import { useTheme } from "next-themes";
 import FormStep from "@/components/FormStep";
 import SummaryScreen from "@/components/SummaryScreen";
+import FullscreenImage from "@/components/FullscreenImage";
+import DatePicker from "@/components/DatePicker";
+import { apiMock } from "@/lib/api-mock";
+import { useToast } from "@/hooks/use-toast";
+import { applyPhoneMask, removePhoneMask } from "@/lib/phoneMask";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale/pt-BR";
 import heroMitte from "@/assets/hero_mitte.png";
 import balcaoFrente from "@/assets/balcao_frente.jpg";
 import balcaoSofa from "@/assets/balcao_sofa.jpg";
@@ -9,10 +17,11 @@ import palco from "@/assets/palco.jpg";
 import pistaBalcao from "@/assets/pista_balcao.jpg";
 import sofasVista from "@/assets/sofas_vista.jpg";
 import pistaFreezers from "@/assets/pista_freezers.jpg";
-import { MapPin, Clock, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, Clock, X, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 interface FormData {
   nome: string;
+  sobrenome: string;
   pessoas: string;
   data: string;
   horario: string;
@@ -35,15 +44,26 @@ const heroCarouselImages = [
 ];
 
 const Index = () => {
+  const { toast } = useToast();
+  const { setTheme } = useTheme();
+  
+  // Força tema dark na página principal
+  useEffect(() => {
+    setTheme('dark');
+  }, [setTheme]);
+  
   const [currentStep, setCurrentStep] = useState(-1);
   const [formData, setFormData] = useState<FormData>({
     nome: "",
+    sobrenome: "",
     pessoas: "",
     data: "",
     horario: "",
     observacoes: "",
     telefone: ""
   });
+  const [isIndisponivel, setIsIndisponivel] = useState(false);
+  const [verificandoDisponibilidade, setVerificandoDisponibilidade] = useState(false);
   
   // Estado para o carrossel do hero
   const [heroIndex, setHeroIndex] = useState(0);
@@ -116,20 +136,63 @@ const Index = () => {
   };
 
   const updateFormData = (field: keyof FormData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    // Aplica máscara se for telefone
+    if (field === 'telefone') {
+      const maskedValue = applyPhoneMask(value);
+      setFormData(prev => ({
+        ...prev,
+        [field]: maskedValue
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
   };
 
-  const goNext = () => setCurrentStep(prev => prev + 1);
-  const goBack = () => setCurrentStep(prev => prev - 1);
+  const goNext = async () => {
+    // Verifica disponibilidade apenas após preencher WhatsApp (último step antes do resumo)
+    // O último step é índice 6 (telefone), que é o step 6 de 7 steps (0-6)
+    if (currentStep === 6 && formData.data && formData.horario && formData.telefone) {
+      setVerificandoDisponibilidade(true);
+      try {
+        const disponibilidade = await apiMock.verificarDisponibilidade({
+          data: formData.data,
+          horario: formData.horario,
+        });
+        
+        if (!disponibilidade.disponivel || disponibilidade.mesasDisponiveis <= 0) {
+          setIsIndisponivel(true);
+          setVerificandoDisponibilidade(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Erro ao verificar disponibilidade:', error);
+        // Continua o fluxo mesmo com erro
+      } finally {
+        setVerificandoDisponibilidade(false);
+      }
+    }
+    
+    setCurrentStep(prev => prev + 1);
+  };
+  
+  const goBack = () => {
+    if (isIndisponivel) {
+      setIsIndisponivel(false);
+      setCurrentStep(6); // Volta para o step de telefone (último step, índice 6)
+    } else {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
 
   const generateWhatsAppMessage = () => {
+    const nomeCompleto = `${formData.nome} ${formData.sobrenome}`.trim();
     const message = `Olá, gostaria de comemorar meu aniversário no Mitte!
 
 Qual o seu nome?
-R: ${formData.nome}
+R: ${nomeCompleto}
 
 Quantas pessoas pretende convidar?
 R: ${formData.pessoas}
@@ -152,9 +215,110 @@ Em breve nossa equipe irá confirmar por aqui o seu agendamento.`;
     return `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
   };
 
-  const handleConfirm = () => {
-    const whatsappUrl = generateWhatsAppMessage();
-    window.open(whatsappUrl, "_blank");
+  const handleConfirm = async () => {
+    try {
+      // Verifica disponibilidade uma última vez antes de confirmar
+      if (formData.data && formData.horario) {
+        const disponibilidade = await apiMock.verificarDisponibilidade({
+          data: formData.data,
+          horario: formData.horario,
+        });
+        
+        // Se não há mesas disponíveis, mostra tela de indisponível
+        if (!disponibilidade.disponivel || disponibilidade.mesasDisponiveis <= 0) {
+          setIsIndisponivel(true);
+          return;
+        }
+      }
+      
+      // Cria agendamento via API
+      await apiMock.createAgendamento({
+        nome: `${formData.nome} ${formData.sobrenome}`.trim(),
+        telefone: removePhoneMask(formData.telefone), // Remove máscara antes de salvar
+        data: formData.data,
+        horario: formData.horario,
+        pessoas: parseInt(formData.pessoas) || 0,
+        observacoes: formData.observacoes,
+        mesas: [], // Mesas serão selecionadas no admin
+        mesaDupla: true, // Padrão: true
+        status: 'pendente',
+      });
+
+      toast({
+        title: 'Agendamento criado com sucesso!',
+        description: 'Em breve nossa equipe entrará em contato para confirmar.',
+      });
+
+      // Também abre WhatsApp como fallback
+      const whatsappUrl = generateWhatsAppMessage();
+      window.open(whatsappUrl, "_blank");
+      
+      // Reseta formulário
+      setFormData({
+        nome: "",
+        sobrenome: "",
+        pessoas: "",
+        data: "",
+        horario: "",
+        observacoes: "",
+        telefone: ""
+      });
+      setCurrentStep(-1);
+    } catch (error) {
+      toast({
+        title: 'Erro ao criar agendamento',
+        description: error instanceof Error ? error.message : 'Tente novamente mais tarde',
+        variant: 'destructive',
+      });
+      
+      // Fallback: abre WhatsApp mesmo com erro
+      const whatsappUrl = generateWhatsAppMessage();
+      window.open(whatsappUrl, "_blank");
+    }
+  };
+
+  const handleTentarOutraData = () => {
+    setIsIndisponivel(false);
+    setCurrentStep(3); // Volta para seleção de data
+  };
+
+  const handleCriarIndisponivel = async () => {
+    try {
+      await apiMock.createAgendamento({
+        nome: `${formData.nome} ${formData.sobrenome}`.trim(),
+        telefone: removePhoneMask(formData.telefone), // Remove máscara antes de salvar
+        data: formData.data,
+        pessoas: parseInt(formData.pessoas) || 0,
+        observacoes: formData.observacoes || 'Cliente tentou agendar mas não havia mesas disponíveis',
+        mesas: [],
+        mesaDupla: true,
+        status: 'indisponivel',
+      });
+
+      toast({
+        title: 'Solicitação registrada!',
+        description: 'Entraremos em contato quando houver disponibilidade.',
+      });
+
+      // Reseta formulário
+      setFormData({
+        nome: "",
+        sobrenome: "",
+        pessoas: "",
+        data: "",
+        horario: "",
+        observacoes: "",
+        telefone: ""
+      });
+      setCurrentStep(-1);
+      setIsIndisponivel(false);
+    } catch (error) {
+      toast({
+        title: 'Erro ao registrar solicitação',
+        description: error instanceof Error ? error.message : 'Tente novamente mais tarde',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Hero Screen com Carrossel
@@ -332,9 +496,37 @@ Em breve nossa equipe irá confirmar por aqui o seu agendamento.`;
     );
   }
 
-  // Summary Screen
-  if (currentStep === 6) {
-    return <SummaryScreen formData={formData} backgroundImage={stepBackgrounds[0]} onBack={goBack} onConfirm={handleConfirm} onEdit={updateFormData} />;
+  // Tela de Indisponível
+  if (isIndisponivel) {
+    return (
+      <FullscreenImage src={stepBackgrounds[0]} alt="Indisponível">
+        <div className="w-full max-w-lg animate-slide-up text-center">
+          <h2 className="mb-6 text-3xl font-bold uppercase tracking-wide text-foreground md:text-4xl">
+            Indisponível
+          </h2>
+          <p className="mb-8 text-lg text-foreground">
+            Agradecemos seu interesse! Infelizmente não temos mesas disponíveis para esta data/horário.
+          </p>
+          <p className="mb-8 text-base text-muted-foreground">
+            Gostaria de tentar outra data?
+          </p>
+          <div className="flex flex-col gap-4">
+            <button
+              onClick={handleTentarOutraData}
+              className="btn-neon w-full animate-pulse-glow"
+            >
+              Tentar Outra Data
+            </button>
+            <button
+              onClick={handleCriarIndisponivel}
+              className="w-full border-2 border-muted px-6 py-4 font-bold uppercase tracking-widest text-muted-foreground transition-all duration-300 hover:border-secondary hover:text-secondary"
+            >
+              Registrar Interesse
+            </button>
+          </div>
+        </div>
+      </FullscreenImage>
+    );
   }
 
   // Form Steps
@@ -342,7 +534,14 @@ Em breve nossa equipe irá confirmar por aqui o seu agendamento.`;
     question: "Qual o seu nome?",
     field: "nome" as keyof FormData,
     type: "text",
-    placeholder: "Digite seu nome completo"
+    placeholder: "Digite seu nome",
+    required: true
+  }, {
+    question: "Qual o seu sobrenome?",
+    field: "sobrenome" as keyof FormData,
+    type: "text",
+    placeholder: "Digite seu sobrenome",
+    required: true
   }, {
     question: "Quantas pessoas pretende convidar?",
     field: "pessoas" as keyof FormData,
@@ -351,10 +550,12 @@ Em breve nossa equipe irá confirmar por aqui o seu agendamento.`;
   }, {
     question: "Qual a data do seu aniversário?",
     field: "data" as keyof FormData,
-    type: "date",
+    type: "datepicker",
     placeholder: ""
   }, {
-    question: "Em qual horário gostaria de começar?",
+    question: formData.data 
+      ? `Em qual horário gostaria de começar? (${format(new Date(formData.data + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })})`
+      : "Em qual horário gostaria de começar?",
     field: "horario" as keyof FormData,
     type: "time",
     placeholder: ""
@@ -370,6 +571,11 @@ Em breve nossa equipe irá confirmar por aqui o seu agendamento.`;
     type: "tel",
     placeholder: "(11) 99999-9999"
   }];
+
+  // Summary Screen - verifica antes de acessar formSteps[currentStep]
+  if (currentStep >= formSteps.length) {
+    return <SummaryScreen formData={formData} backgroundImage={stepBackgrounds[0]} onBack={goBack} onConfirm={handleConfirm} onEdit={updateFormData} />;
+  }
 
   const currentFormStep = formSteps[currentStep];
   const isOptional = currentFormStep?.optional;
@@ -388,13 +594,34 @@ Em breve nossa equipe irá confirmar por aqui o seu agendamento.`;
       nextLabel={currentStep === formSteps.length - 1 ? "Ver Resumo" : "Próximo"} 
       isValid={isValid}
     >
-      {currentFormStep.type === "textarea" ? (
+      {verificandoDisponibilidade && currentStep === 6 ? (
+        <div className="flex flex-col items-center justify-center gap-4 py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm uppercase tracking-wide text-muted-foreground">
+            Verificando disponibilidade...
+          </p>
+        </div>
+      ) : currentFormStep.type === "datepicker" ? (
+        <DatePicker
+          value={formData.data}
+          onChange={(date) => updateFormData("data", date)}
+        />
+      ) : currentFormStep.type === "textarea" ? (
         <textarea 
           value={formData[currentFormStep.field]} 
           onChange={e => updateFormData(currentFormStep.field, e.target.value)} 
           placeholder={currentFormStep.placeholder} 
           className="input-neon min-h-[120px] resize-none" 
           rows={4} 
+        />
+      ) : currentFormStep.type === "tel" ? (
+        <input 
+          type="tel" 
+          value={formData[currentFormStep.field]} 
+          onChange={e => updateFormData(currentFormStep.field, e.target.value)} 
+          placeholder={currentFormStep.placeholder} 
+          className="input-neon" 
+          maxLength={15} // (XX) XXXXX-XXXX = 15 caracteres
         />
       ) : (
         <input 

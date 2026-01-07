@@ -3,6 +3,7 @@ import FullscreenImage from "./FullscreenImage";
 
 interface FormData {
   nome: string;
+  sobrenome: string;
   pessoas: string;
   data: string;
   horario: string;
@@ -35,7 +36,8 @@ const SummaryScreen = ({
   };
 
   const fields: { key: keyof FormData; label: string }[] = [
-    { key: "nome", label: "Qual o seu nome?" },
+    { key: "nome", label: "Nome" },
+    { key: "sobrenome", label: "Sobrenome" },
     { key: "pessoas", label: "Quantas pessoas pretende convidar?" },
     { key: "data", label: "Qual a data do seu aniversário?" },
     { key: "horario", label: "Em qual horário gostaria de começar?" },
