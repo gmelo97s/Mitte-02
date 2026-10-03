@@ -1,73 +1,72 @@
-# Welcome to your Lovable project
+# Outs Pub — cardápio digital
 
-## Project info
+Site do **Outs Pub**, o pubinho da Rua Augusta, 498 (Consolação, São Paulo).
+Cardápio completo em página única, com a identidade de colagem/zine do impresso
+da casa: fita vermelha, papel rasgado, kraft amarelo e carimbo.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Rodando o projeto
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm install
+npm run dev      # servidor local
+npm run build    # build de produção em dist/
+npm run lint
 ```
 
-**Edit a file directly in GitHub**
+## Onde mexer no cardápio
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Tudo vive em **`src/data/menu.ts`**. Não precisa tocar em componente nenhum para
+mudar preço, nome ou ingrediente.
 
-**Use GitHub Codespaces**
+```ts
+{ id: "dr-mojito", name: "Mojito", price: 32, recipe: "rum, água com gás, hortelã, açúcar", volume: "350ml" }
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+| Campo     | Para que serve                                                        |
+| --------- | --------------------------------------------------------------------- |
+| `price`   | Número em reais. **`null`** faz o site mostrar “consultar”.            |
+| `recipe`  | Ingredientes, igual aos parênteses do impresso.                        |
+| `volume`  | `"350ml"`, `"500g"`, `"12 unidades"`…                                  |
+| `hit`     | `true` carimba a etiqueta vermelha **PEDIDO** no item.                 |
+| `image`   | Caminho da foto do item (opcional — veja abaixo).                      |
+| `swatch`  | Cor do líquido; usado só nos shots de R$5.                             |
 
-## What technologies are used for this project?
+Dados da casa (endereço, horários, Wi-Fi, Instagram, ficha de sinuca) ficam no
+objeto `VENUE`, no fim do mesmo arquivo. O horário de funcionamento que liga o
+selo “Aberto agora” está em `src/lib/hours.ts` — se mudar o `VENUE.hours`,
+atualize os dois.
 
-This project is built with:
+### Preços que ainda faltam
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Os itens marcados com `price: null` são os trechos que saíram ilegíveis na foto
+do cardápio impresso (reflexo/fora de foco): **long necks** (Amstel, Brahma,
+Budweiser, Beck's, Corona, Eisenbahn, Heineken), **litrão** (Amstel, Budweiser,
+Original), **drinks prontos** e **porções**. Basta trocar o `null` pelo número.
 
-## How can I deploy this project?
+## Subindo as fotos dos itens
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+1. Coloque os arquivos em `public/fotos/` (ex.: `public/fotos/mojito.jpg`).
+2. Aponte no item: `image: "/fotos/mojito.jpg"`.
 
-## Can I connect a custom domain to my Lovable project?
+A miniatura aparece à esquerda do nome e cresce um pouco no hover. Item sem
+`image` simplesmente não mostra foto — nada quebra.
 
-Yes, you can!
+## Identidade
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Tokens de cor e textura em `tailwind.config.ts` (`colors.outs`) e
+`src/index.css`:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- `outs-red` `#E8332A` — fita crepe do logo
+- `outs-kraft` `#F0C040` — papel amarelo (doses, cervejas, porções)
+- `outs-paper` `#F4F0E6` — papel branco (drinks, caipirinha, gin, prontos)
+- `outs-bubble` `#F2C8DE` — papel rosa (shots)
+- `outs-ink` `#0B0A0A` — fundo
+
+Classes utilitárias prontas: `.paper`, `.paper-kraft`, `.paper-bubble`,
+`.tape-red`, `.tape-black`, `.washi` (durex, use num wrapper — nunca no
+elemento com `clip-path`), `.grain`, `.leader`, `.reveal`, `.reveal-tilt`,
+`.marquee-track`.
+
+## Stack
+
+Vite · React · TypeScript · Tailwind CSS · shadcn/ui · lucide-react
